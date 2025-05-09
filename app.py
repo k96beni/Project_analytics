@@ -13,6 +13,8 @@ import base64
 from PIL import Image as PILImage
 import io
 
+# Change
+
 # Set page configuration
 st.set_page_config(
     page_title="ChargeNode Rapport Generator",
