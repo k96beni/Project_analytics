@@ -380,20 +380,29 @@ def calculate_metrics(sessions_df, overview_df):
         total_outlets = int(outlets_per_area['Number_of_Outlets'].sum())
     
     # Ersätt endast om overview_df finns och har rätt struktur
+    # Försök läsa antalet uttag från overview.xlsx om det finns
     if overview_df is not None and 'AreaCode' in overview_df.columns:
         area_id_col = overview_df.columns[0]
-        outlet_col_idx = 3
+        outlet_col_idx = 3  # kolumn 4 (index 3)
+
         if outlet_col_idx < len(overview_df.columns):
             outlet_column = overview_df.columns[outlet_col_idx]
-            # Använd original områdessträng (typ "2571 - Stena Fastighet")
+
+            # Använd original områdessträng (t.ex. "2571 - Stena Fastighet")
             overview_df['Område'] = overview_df[area_id_col]
             overview_df['Number_of_Outlets'] = pd.to_numeric(overview_df[outlet_column], errors='coerce').fillna(0)
             outlets_per_area = overview_df[['Område', 'Number_of_Outlets']]
-            metrics['outlets_per_area'] = outlets_per_area
-else:
+
+    # Annars används outlets_per_area från sessions-data (som redan är beräknad tidigare)
     metrics['outlets_per_area'] = outlets_per_area
 
+    # Alltid summera efter rätt källa använts
+    total_outlets = int(outlets_per_area['Number_of_Outlets'].sum())
     metrics['total_outlets'] = total_outlets
+
+    # Skydda mot division med noll
+    total_outlets_for_calc = max(1, total_outlets)
+
     
     # For calculations that use total_outlets, make sure it's never zero to avoid division by zero
     total_outlets_for_calc = max(1, total_outlets)  # Use at least 1 to avoid division by zero
