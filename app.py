@@ -181,7 +181,13 @@ def preprocess_data(sessions_df, overview_df):
     for col in ['Laddat (kWh)', 'Kostnad (exkl)']:
         if col in sessions_df.columns:
             if sessions_df[col].dtype == object:
-                sessions_df[col] = sessions_df[col].astype(str).str.replace(',', '.').astype(float)
+                sessions_df[col] = (
+                    sessions_df[col]
+                    .astype(str)
+                    .str.replace('\xa0', '', regex=False)  # ta bort icke-brytande mellanslag
+                    .str.replace(' ', '', regex=False)     # ta bort vanliga mellanslag (för säkerhets skull)
+                    .str.replace(',', '.', regex=False)    # omvandlar svenska decimalkomma till punkt
+                )
             sessions_df[col] = pd.to_numeric(sessions_df[col], errors='coerce').fillna(0)
     
     if 'Uttag' in sessions_df.columns:
