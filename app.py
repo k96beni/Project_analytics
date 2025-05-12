@@ -77,7 +77,7 @@ EXPECTED_COLUMNS = {
     'Startad': ['Startad', 'Start', 'Started', 'Start Time', 'StartTime', 'Beginning', 'Start Date'],
     'Avslutad': ['Avslutad', 'End', 'Ended', 'End Time', 'EndTime', 'Finish', 'End Date'],
     'Laddat (kWh)': ['Laddat (kWh)', 'kWh', 'Energy', 'Charged', 'Energy (kWh)', 'Power', 'Consumption'],
-    'Kostnad (exkl)': ['Kostnad (exkl)', 'Cost', 'Price', 'Cost (excl)', 'Fee', 'Charge', 'Amount'],
+    'Omsättning (exkl)': ['Kostnad (exkl)', 'Cost', 'Price', 'Cost (excl)', 'Fee', 'Charge', 'Amount'],
     'Uttag': ['Uttag', 'Outlet', 'Charger', 'Outlet ID', 'Charger ID', 'Terminal', 'Station'],
     'Område': ['Område', 'Area', 'Location', 'Region', 'Zone', 'Site', 'Place']
 }
@@ -144,7 +144,7 @@ def preprocess_data(sessions_df, overview_df):
     if column_rename_map:
         sessions_df = sessions_df.rename(columns=column_rename_map)
     
-    required_columns = ['Startad', 'Avslutad', 'Laddat (kWh)', 'Kostnad (exkl)', 'Uttag', 'Område']
+    required_columns = ['Startad', 'Avslutad', 'Laddat (kWh)', 'Omsättning (exkl)', 'Uttag', 'Område']
     missing_columns = [col for col in required_columns if col not in sessions_df.columns]
     
     if missing_columns:
@@ -154,7 +154,7 @@ def preprocess_data(sessions_df, overview_df):
         if 'Startad' not in sessions_df.columns: sessions_df['Startad'] = pd.to_datetime('2023-01-01T00:00:00')
         if 'Avslutad' not in sessions_df.columns: sessions_df['Avslutad'] = pd.to_datetime('2023-01-01T01:00:00')
         if 'Laddat (kWh)' not in sessions_df.columns: sessions_df['Laddat (kWh)'] = 10.0
-        if 'Kostnad (exkl)' not in sessions_df.columns: sessions_df['Kostnad (exkl)'] = 5.0
+        if 'Omsättning (exkl)' not in sessions_df.columns: sessions_df['Omsättning (exkl)'] = 5.0
         if 'Uttag' not in sessions_df.columns: sessions_df['Uttag'] = "Uttag_1"
         if 'Område' not in sessions_df.columns: sessions_df['Område'] = 'Default Area'
     
@@ -178,7 +178,7 @@ def preprocess_data(sessions_df, overview_df):
     sessions_df.loc[sessions_df['Duration_Hours'] < 0, 'Duration_Hours'] = 0
     sessions_df.loc[sessions_df['Duration_Minutes'] < 0, 'Duration_Minutes'] = 0
 
-    for col in ['Laddat (kWh)', 'Kostnad (exkl)']:
+    for col in ['Laddat (kWh)', 'Omsättning (exkl)']:
         if col in sessions_df.columns:
             if sessions_df[col].dtype == object:
                 sessions_df[col] = (
@@ -261,14 +261,14 @@ def calculate_metrics(sessions_df, overview_df):
         metrics['outlets_per_area'] = pd.DataFrame(columns=['Område', 'Number_of_Outlets'])
         metrics['total_outlets'] = 0
         metrics['kwh_per_month_area'] = pd.DataFrame(columns=['Område', 'Year_Month', 'Laddat (kWh)'])
-        metrics['cost_per_month_area'] = pd.DataFrame(columns=['Område', 'Year_Month', 'Kostnad (exkl)'])
+        metrics['revenue_per_month_area'] = pd.DataFrame(columns=['Område', 'Year_Month', 'Omsättning (exkl)'])
         metrics['kwh_per_month'] = pd.DataFrame(columns=['Year_Month', 'Laddat (kWh)'])
         metrics['avg_kwh_per_outlet_month'] = pd.DataFrame(columns=['Year_Month', 'Avg_kWh_per_Outlet'])
         metrics['kwh_outlet_month_area'] = pd.DataFrame(columns=['Område', 'Year_Month', 'Uttag', 'Laddat (kWh)'])
         metrics['hourly_utilization'] = pd.DataFrame(columns=['Date', 'Hour', 'IsWeekend', 'Outlets_In_Use', 'Total_Outlets', 'Utilization', 'Date_Str'])
         metrics['utilization'] = pd.DataFrame(columns=['Område', 'Year_Month', 'Used_Outlet_Hours', 'Total_Possible_Outlet_Hours', 'Utilization'])
         metrics['total_kwh'] = 0
-        metrics['total_cost'] = 0
+        metrics['total_revenue'] = 0
         metrics['total_sessions'] = 0
         metrics['avg_kwh_per_session'] = 0
         metrics['avg_duration_minutes'] = 0
@@ -388,8 +388,8 @@ def calculate_metrics(sessions_df, overview_df):
     kwh_per_month_area = sessions_df.groupby(['Område', 'Year_Month'])['Laddat (kWh)'].sum().reset_index()
     metrics['kwh_per_month_area'] = kwh_per_month_area
 
-    cost_per_month_area = sessions_df.groupby(['Område', 'Year_Month'])['Kostnad (exkl)'].sum().reset_index()
-    metrics['cost_per_month_area'] = cost_per_month_area
+    revenue_per_month_area = sessions_df.groupby(['Område', 'Year_Month'])['Omsättning (exkl)'].sum().reset_index()
+    metrics['revenue_per_month_area'] = revenue_per_month_area
     
     kwh_per_month = sessions_df.groupby(['Year_Month'])['Laddat (kWh)'].sum().reset_index()
     metrics['kwh_per_month'] = kwh_per_month
@@ -534,7 +534,7 @@ def calculate_metrics(sessions_df, overview_df):
     metrics['utilization'] = pd.DataFrame(utilization_data)
     
     metrics['total_kwh'] = sessions_df['Laddat (kWh)'].sum()
-    metrics['total_cost'] = sessions_df['Kostnad (exkl)'].sum()
+    metrics['total_revenue'] = sessions_df['Omsättning (exkl)'].sum()
     metrics['total_sessions'] = len(sessions_df)
     metrics['avg_kwh_per_session'] = metrics['total_kwh'] / metrics['total_sessions'] if metrics['total_sessions'] > 0 else 0
     metrics['avg_duration_minutes'] = sessions_df['Duration_Minutes'].mean() if metrics['total_sessions'] > 0 else 0
@@ -564,15 +564,15 @@ def create_visualizations(metrics, sessions_df): # Pass sessions_df for more det
     fig_kwh_area.update_layout(xaxis_tickangle=-45)
     figures['kwh_per_month_area'] = fig_kwh_area
 
-    # 2b. Bar chart: Kostnad (exkl) per month for each area
-    fig_cost_area = px.bar(
-        metrics['cost_per_month_area'], x='Year_Month', y='Kostnad (exkl)', color='Område',
-        title='Total Kostnad (exkl. moms) per Månad och Område',
-        labels={'Kostnad (exkl)': 'Kostnad (SEK)', 'Year_Month': 'Månad', 'Område': 'Område'},
+    # 2b. Bar chart: Omsättning (exkl) per month for each area
+    fig_revenue_area = px.bar(
+        metrics['revenue_per_month_area'], x='Year_Month', y='Omsättning (exkl)', color='Område',
+        title='Total Omsättning (exkl. moms) per Månad och Område',
+        labels={'Omsättning (exkl)': 'Omsättning (SEK)', 'Year_Month': 'Månad', 'Område': 'Område'},
         barmode='group', color_discrete_sequence=px.colors.qualitative.Set2
     )
-    fig_cost_area.update_layout(xaxis_tickangle=-45)
-    figures['cost_per_month_area'] = fig_cost_area
+    fig_revenue_area.update_layout(xaxis_tickangle=-45)
+    figures['revenue_per_month_area'] = fig_revenue_area
     
     # 3. Line chart: Average kWh per outlet per month (overall)
     fig_avg_kwh = px.line(
@@ -1143,7 +1143,7 @@ def generate_html_report(metrics, figures, selected_graph_keys, selected_areas, 
     graph_descriptions = {
         'outlets_per_area': "Visar det totala antalet unika ladduttag som har använts inom den valda tidsperioden och för de valda områdena. Detta hjälper att få en översikt över fördelningen av laddinfrastruktur.",
         'kwh_per_month_area': "Stapeldiagram som visar den totala laddade energin (kWh) per månad, uppdelat per valt område. Användbart för att följa energitrender över tid och mellan olika platser.",
-        'cost_per_month_area': "Stapeldiagram som visar den totala kostnaden (exklusive moms) per månad, uppdelat per valt område. Ger insikt i ekonomiska aspekter över tid och per plats.",
+        'revenue_per_month_area': "Stapeldiagram som visar den totala intäkten (exklusive moms) per månad, uppdelat per valt område. Ger insikt i ekonomiska aspekter över tid och per plats.",
         'avg_kwh_per_outlet': "Linjediagram som visar den genomsnittliga mängden energi (kWh) som varje aktivt uttag har levererat per månad, sett över alla valda områden. En ökande trend kan indikera effektivare användning eller längre sessioner.",
         'hourly_utilization_heatmap': "Heatmap som visualiserar beläggningsgraden för varje timme och dag. Mörkare grön färg indikerar högre beläggning. Detta ger en tydlig bild av användningsmönster över tid och hjälper till att identifiera perioder med hög efterfrågan.",
         'avg_hourly_utilization_line': "Linjediagram som visar den genomsnittliga beläggningsgraden fördelat per timme på dygnet, uppdelat på vardagar och helger. Detta hjälper att identifiera tidpunkter för mest aktiv användning.",
@@ -1165,7 +1165,7 @@ def generate_html_report(metrics, figures, selected_graph_keys, selected_areas, 
             graph_display_names = {
                 'outlets_per_area': 'Antal Uttag per Område',
                 'kwh_per_month_area': 'Energi per Månad och Område',
-                'cost_per_month_area': 'Kostnad per Månad och Område',
+                'revenue_per_month_area': 'Omsättning per Månad och Område',
                 'avg_kwh_per_outlet': 'Genomsnittlig kWh per Uttag per Månad',
                 'hourly_utilization_heatmap': 'Timvis Beläggningsgrad (Heatmap)',
                 'avg_hourly_utilization_line': 'Genomsnittlig Beläggning per Timme',
@@ -1341,14 +1341,14 @@ if sessions_file is not None: # Overview file is now optional
                 st.plotly_chart(figures['monthly_utilization_area_heatmap'], use_container_width=True)
 
             with tab3:
-                st.header("Energiförbrukning och Kostnad")
+                st.header("Energiförbrukning och Omsättning")
                 st.subheader(figures['kwh_per_month_area'].layout.title.text)
                 st.caption("Stapeldiagram som visar den totala laddade energin (kWh) per månad, uppdelat per valt område. Användbart för att följa energitrender över tid och mellan olika platser.")
                 st.plotly_chart(figures['kwh_per_month_area'], use_container_width=True)
 
-                st.subheader(figures['cost_per_month_area'].layout.title.text)
-                st.caption("Stapeldiagram som visar den totala kostnaden (exklusive moms) per månad, uppdelat per valt område. Ger insikt i ekonomiska aspekter över tid och per plats.")
-                st.plotly_chart(figures['cost_per_month_area'], use_container_width=True)
+                st.subheader(figures['revenue_per_month_area'].layout.title.text)
+                st.caption("Stapeldiagram som visar den totala Omsättningen (exklusive moms) per månad, uppdelat per valt område. Ger insikt i ekonomiska aspekter över tid och per plats.")
+                st.plotly_chart(figures['revenue_per_month_area'], use_container_width=True)
 
                 st.subheader(figures['avg_kwh_per_outlet'].layout.title.text)
                 st.caption("Linjediagram som visar den genomsnittliga mängden energi (kWh) som varje aktivt uttag har levererat per månad, sett över alla valda områden. En ökande trend kan indikera effektivare användning eller längre sessioner per uttag.")
@@ -1403,7 +1403,7 @@ if sessions_file is not None: # Overview file is now optional
             graph_display_names = {
                 'outlets_per_area': 'Antal Uttag per Område',
                 'kwh_per_month_area': 'Energi per Månad och Område',
-                'cost_per_month_area': 'Kostnad per Månad och Område',
+                'revenue_per_month_area': 'Omsättning per Månad och Område',
                 'avg_kwh_per_outlet': 'Genomsnittlig kWh per Uttag per Månad',
                 'hourly_utilization_heatmap': 'Timvis Beläggningsgrad (Heatmap)',
                 'avg_hourly_utilization_line': 'Genomsnittlig Beläggning per Timme',
