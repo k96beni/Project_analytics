@@ -379,7 +379,20 @@ def calculate_metrics(sessions_df, overview_df):
         # If no overview file, just use the active outlets from sessions
         total_outlets = int(outlets_per_area['Number_of_Outlets'].sum())
     
+    # Ersätt endast om overview_df finns och har rätt struktur
+    if overview_df is not None and 'AreaCode' in overview_df.columns:
+        area_id_col = overview_df.columns[0]
+        outlet_col_idx = 3
+        if outlet_col_idx < len(overview_df.columns):
+            outlet_column = overview_df.columns[outlet_col_idx]
+            # Använd original områdessträng (typ "2571 - Stena Fastighet")
+            overview_df['Område'] = overview_df[area_id_col]
+            overview_df['Number_of_Outlets'] = pd.to_numeric(overview_df[outlet_column], errors='coerce').fillna(0)
+            outlets_per_area = overview_df[['Område', 'Number_of_Outlets']]
+            metrics['outlets_per_area'] = outlets_per_area
+else:
     metrics['outlets_per_area'] = outlets_per_area
+
     metrics['total_outlets'] = total_outlets
     
     # For calculations that use total_outlets, make sure it's never zero to avoid division by zero
@@ -1322,7 +1335,7 @@ if sessions_file is not None: # Overview file is now optional
                             </div>""", unsafe_allow_html=True)
                 st.markdown("---")
                 st.subheader(figures['outlets_per_area'].layout.title.text)
-                st.caption("Visar det totala antalet unika ladduttag som har använts inom den valda tidsperioden och för de valda områdena.")
+                st.caption("Visar det totala antalet installerade ladduttag per område enligt översiktsfilen (overview.xlsx).")
                 st.plotly_chart(figures['outlets_per_area'], use_container_width=True)
 
             with tab2:
