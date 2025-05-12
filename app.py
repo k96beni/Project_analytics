@@ -1303,13 +1303,16 @@ if sessions_file is not None: # Overview file is now optional
             
             with tab1:
                 st.header("Nyckeltal")
-                cols = st.columns(4)
+                cols = st.columns(5)  # Uppdatera till 5 kolumner
+
                 key_metrics_display = {
                     "Antal Områden": metrics.get('area_count', 'N/A'),
                     "Totalt Antal Uttag": f"{metrics.get('total_outlets', 'N/A'):,}",
                     "Totala Sessioner": f"{metrics.get('total_sessions', 'N/A'):,}",
-                    "Total Energi (kWh)": f"{metrics.get('total_kwh', 0):,.2f}"
+                    "Total Energi (kWh)": f"{metrics.get('total_kwh', 0):,.2f}",
+                    "Total Omsättning (SEK)": f"{metrics.get('total_revenue', 0):,.2f}"
                 }
+
                 for i, (label, value) in enumerate(key_metrics_display.items()):
                     with cols[i % 4]:
                          st.markdown(f"""
